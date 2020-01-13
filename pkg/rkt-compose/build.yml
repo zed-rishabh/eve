@@ -1,0 +1,3 @@
+image: eve-rkt-compose
+org: lfedge
+network: yes

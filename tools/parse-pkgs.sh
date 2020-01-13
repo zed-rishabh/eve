@@ -91,6 +91,7 @@ sed -e '/-.*linuxkit\/.*:/s# *$#'${ARCH}# \
     -e "s#DEBUG_TAG#$DEBUG_TAG#" \
     -e "s#LISP_TAG#$LISP_TAG#" \
     -e "s#RKT_TAG#${RKT_TAG}#" \
+    -e "s#RKT_COMPOSE_TAG#${RKT_COMPOSE_TAG}#" \
     -e "s#RKT_STAGE1_TAG#${RKT_STAGE1_TAG}#" \
     -e "s#FSCRYPT_TAG#${FSCRYPT_TAG}#" \
     -e "s#VTPM_TAG#${VTPM_TAG}#" \
@@ -139,6 +140,7 @@ WATCHDOG_TAG=$(linuxkit_tag pkg/watchdog)
 MKRAW_TAG=$(linuxkit_tag pkg/mkimage-raw-efi)
 DEBUG_TAG=$(linuxkit_tag pkg/debug)
 RKT_TAG=$(linuxkit_tag pkg/rkt)
+RKT_COMPOSE_TAG=$(linuxkit_tag pkg/rkt-compose)
 RKT_STAGE1_TAG=$(linuxkit_tag pkg/rkt-stage1)
 FSCRYPT_TAG=$(linuxkit_tag pkg/fscrypt)
 VTPM_TAG=$(linuxkit_tag pkg/vtpm)
