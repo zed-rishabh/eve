@@ -1,0 +1,80 @@
+From 3f1a61c9a2bd8c4e0dffc26e7d0b28f4b5d289f8 Mon Sep 17 00:00:00 2001
+From: zed-rishabh <rgupta@zededa.com>
+Date: Mon, 20 Jan 2020 13:23:56 +0530
+Subject: [PATCH] Fixed rkt-compose-issues
+
+---
+ .../mgoltzsche/launcher/launcher.go           | 22 +++++++++++++------
+ 1 file changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/github.com/mgoltzsche/launcher/launcher.go b/src/github.com/mgoltzsche/launcher/launcher.go
+index 337a324..5e23596 100644
+--- a/src/github.com/mgoltzsche/launcher/launcher.go
++++ b/src/github.com/mgoltzsche/launcher/launcher.go
+@@ -2,7 +2,6 @@ package launcher
+ 
+ import (
+ 	"bytes"
+-	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"github.com/mgoltzsche/log"
+@@ -150,7 +149,6 @@ func (ctx *PodLauncher) Start() (err error) {
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer os.Remove(ctx.hostsFile)
+ 	err = ctx.prepare()
+ 	if err != nil {
+ 		return
+@@ -225,6 +223,7 @@ func (ctx *PodLauncher) run() {
+ 	ctx.cmd.Stdout = os.Stdout
+ 	ctx.cmd.Stderr = os.Stderr
+ 	ctx.err = ctx.cmd.Run()
++	os.Remove(ctx.hostsFile)
+ }
+ 
+ func (ctx *PodLauncher) onPodTerminated() {
+@@ -279,7 +278,8 @@ func (ctx *PodLauncher) containerInfo() (r *ContainerInfo, err error) {
+ 	interval := time.Millisecond * 50
+ 	for i := 0; i < 40; i++ { // Loop is workaround since initial command call may list no networks
+ 		r = &ContainerInfo{}
+-		cmd := exec.Command("rkt", "status", "--format=json", "--wait-ready=5s", ctx.podUUID)
++		n := &ContainerNetwork{}
++		cmd := exec.Command("rkt", "status", ctx.podUUID)
+ 		var buf bytes.Buffer
+ 		cmd.Stderr = &buf
+ 		out, e := cmd.Output()
+@@ -287,10 +287,17 @@ func (ctx *PodLauncher) containerInfo() (r *ContainerInfo, err error) {
+ 			err = fmt.Errorf("Failed to request rkt pod status: %s. %s", e, buf)
+ 			return
+ 		}
+-		err = json.Unmarshal(out, r)
+-		if err != nil {
+-			err = fmt.Errorf("Failed to unmarshal rkt status. %s. Output: %s", err, string(out))
+-			return
++		output := strings.Split(string(out), "\n")
++		for _, v := range output {
++			if strings.Contains(v, "state") {
++				state := strings.Split(v, "=")
++				r.State = state[1]
++			}
++			if strings.Contains(v, "ip4") {
++				ip := strings.Split(v, "ip4=")
++				n.IP = ip[1]
++				r.Networks = append(r.Networks, n)
++			}
+ 		}
+ 		if r.State == "running" && len(r.Networks) > 0 {
+ 			return
+@@ -407,6 +414,7 @@ func (ctx *PodLauncher) toRktPrepareArgs() ([]string, error) {
+ 		if len(s.Entrypoint) == 0 {
+ 			return nil, fmt.Errorf("missing entrypoint in service %q", name)
+ 		}
++		r.add("--stage1-path=/usr/sbin/stage1-xen.aci")
+ 		r.add("--exec=" + s.Entrypoint[0])
+ 		r.add("--")
+ 		r.add(s.Entrypoint[1:]...)
+-- 
+2.17.1
+
