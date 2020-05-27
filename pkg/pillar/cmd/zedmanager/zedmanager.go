@@ -686,6 +686,7 @@ func handleModify(ctxArg interface{}, key string,
 			log.Infof("Removing error %s", status.Error)
 			status.ClearErrorWithSource()
 		}
+		customPurge(&config)
 		status.PurgeCmd.Counter = config.PurgeCmd.Counter
 		status.PurgeInprogress = types.RecreateVolumes
 		status.State = types.PURGING
@@ -712,6 +713,14 @@ func handleModify(ctxArg interface{}, key string,
 	status.IoAdapterList = config.IoAdapterList
 	publishAppInstanceStatus(ctx, status)
 	log.Infof("handleModify done for %s", config.DisplayName)
+}
+
+func customPurge(config *types.AppInstanceConfig) {
+	for i := range config.StorageConfigList {
+		if !config.StorageConfigList[i].Preserve {
+			config.StorageConfigList[i].PurgeCounter = config.PurgeCmd.Counter
+		}
+	}
 }
 
 // checkPurgeDiskSizeFit sees if a purge might exceed the remaining space
