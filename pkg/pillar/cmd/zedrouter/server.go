@@ -42,6 +42,11 @@ type openstackHandler struct {
 	ctx *zedrouterContext
 }
 
+// Provides k3s cluster kubeconfig
+type kubeConfigHandler struct {
+	ctx *zedrouterContext
+}
+
 func createServer4(ctx *zedrouterContext, bridgeIP string, bridgeName string) error {
 	if bridgeIP == "" {
 		err := fmt.Errorf("can't run server on %s: no bridgeIP", bridgeName)
@@ -59,6 +64,9 @@ func createServer4(ctx *zedrouterContext, bridgeIP string, bridgeName string) er
 	openstackHandler := &openstackHandler{ctx: ctx}
 	mux.Handle("/openstack", openstackHandler)
 	mux.Handle("/openstack/", openstackHandler)
+
+	kubeConfigHandler := &kubeConfigHandler{ctx: ctx}
+	mux.Handle("/eve/v1/kubeconfig", kubeConfigHandler)
 
 	targetPort := 80
 	subnetStr := "169.254.169.254/32"
@@ -335,4 +343,26 @@ func (hdl openstackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("{}"))
 	}
 	w.WriteHeader(http.StatusNotFound)
+}
+
+// ServeHTTP for kubeConfigHandler provides cluster kube config
+func (hdl kubeConfigHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var kubeConfig types.KubeConfig
+	err := json.NewDecoder(r.Body).Decode(&kubeConfig)
+	if err != nil {
+		log.Errorf("kube config handler: decoding failed: %v", err)
+		return
+	}
+	var appInstMetaData types.AppInstMetaData
+	appInstMetaData.AppInstUUID = kubeConfig.AppInstUUID
+	appInstMetaData.Type = types.AppInstMetaDataTypeKubeConfig
+	appInstMetaData.Data, err = json.Marshal(kubeConfig.Config)
+	if err != nil {
+		log.Errorf("kube config handler: json marshaling failed for %v: %v",
+			kubeConfig.AppInstUUID, err)
+		return
+	}
+	pub := hdl.ctx.pubAppInstMetaData
+	pub.Publish(appInstMetaData.Key(), appInstMetaData)
+	return
 }
